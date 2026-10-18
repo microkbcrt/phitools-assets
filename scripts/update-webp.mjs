@@ -126,12 +126,26 @@ async function main() {
         } catch (e) { /* 目录不存在 */ }
         stat[set.dir] = { count: n, bytes: b };
     }
+    // 只在「有实际更新」或「新的一月首次运行」时写 manifest：
+    // 前者提交才提交；后者作为保活提交，避免 GitHub 因仓库 60 天无活动停用定时任务。
+    const manifestPath = path.join(OUT_DIR, 'manifest.json');
     await fsp.mkdir(OUT_DIR, { recursive: true });
-    await fsp.writeFile(path.join(OUT_DIR, 'manifest.json'), JSON.stringify({
-        updatedAt: new Date().toISOString(),
-        upstream: `${UPSTREAM_REPO}@${UPSTREAM_BRANCH}`,
-        sets: stat,
-    }, null, 2));
+    let prev = null;
+    try { prev = JSON.parse(await fsp.readFile(manifestPath, 'utf8')); } catch (e) { /* 首次 */ }
+    const nowIso = new Date().toISOString();
+    const month = (iso) => String(iso || '').slice(0, 7);
+    const needWrite = done > 0 || !prev || month(prev.updatedAt) !== month(nowIso);
+    if (needWrite) {
+        await fsp.writeFile(manifestPath, JSON.stringify({
+            updatedAt: nowIso,
+            upstream: `${UPSTREAM_REPO}@${UPSTREAM_BRANCH}`,
+            sets: stat,
+            lastChangeCount: done,
+        }, null, 2));
+        console.log(done > 0 ? '[upd] manifest 已更新（有实际变更）' : '[upd] manifest 已更新（每月保活提交）');
+    } else {
+        console.log('[upd] 无变更，跳过 manifest 写入（不产生提交）');
+    }
 
     console.log(`[upd] 完成：新增/更新 ${done} 首，失败 ${failed.length} 首，本次写入 ${(totalBytes / 1048576).toFixed(1)} MB`);
     console.log(`[upd] ill512: ${stat[`${OUT_DIR}/ill512`].count} 张 ${(stat[`${OUT_DIR}/ill512`].bytes / 1048576).toFixed(1)} MB`);

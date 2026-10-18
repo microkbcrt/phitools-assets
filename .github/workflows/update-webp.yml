@@ -1,0 +1,65 @@
+name: Update WebP assets
+
+# 自动维护曲绘素材：定时检查上游 phi-plugin-ill 是否有新曲/改动，
+# 自动下载原图 → 转 512w / 2048w WebP → 提交回本仓库。
+#
+# 首次使用：Actions 页签里手动 Run workflow 一次（会全量生成 ~63MB 素材）。
+# 之后：每天定时自动增量更新；也可以随时手动触发。
+
+on:
+  schedule:
+    - cron: '17 3 * * *'      # 每天 UTC 03:17（北京时间 11:17）
+  workflow_dispatch:
+    inputs:
+      force:
+        description: '全部重转（忽略已存在的文件）'
+        type: boolean
+        default: false
+      limit:
+        description: '只处理前 N 首（测试用，留空为全部）'
+        type: string
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-webp
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install deps
+        run: npm ci || npm install
+
+      - name: Transcode new illustrations to WebP
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WEBP_CONCURRENCY: '6'
+        run: |
+          EXTRA=""
+          if [ "${{ inputs.force }}" = "true" ]; then EXTRA="$EXTRA --force"; fi
+          if [ -n "${{ inputs.limit }}" ]; then EXTRA="$EXTRA --limit ${{ inputs.limit }}"; fi
+          node scripts/update-webp.mjs $EXTRA
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ill-webp
+          if git diff --cached --quiet; then
+            echo "没有变化，跳过提交"
+          else
+            COUNT=$(git diff --cached --name-only | wc -l)
+            git commit -m "chore: 更新 WebP 曲绘素材（${COUNT} 个文件）"
+            git push
+          fi

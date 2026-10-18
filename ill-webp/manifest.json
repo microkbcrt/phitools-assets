@@ -1,11 +1,14 @@
 {
-  "generatedAt": "2026-10-18T14:42:41.162Z",
-  "set512": {
-    "count": 328,
-    "bytes": 8250750
-  },
-  "set2048": {
-    "count": 328,
-    "bytes": 58021564
+  "updatedAt": "2026-10-18T15:52:30.390Z",
+  "upstream": "Catrong/phi-plugin-ill@main",
+  "sets": {
+    "ill-webp/ill512": {
+      "count": 328,
+      "bytes": 8250750
+    },
+    "ill-webp/ill2048": {
+      "count": 328,
+      "bytes": 58021564
+    }
   }
 }

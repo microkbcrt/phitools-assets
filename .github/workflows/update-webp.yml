@@ -52,14 +52,29 @@ jobs:
           node scripts/update-webp.mjs $EXTRA
 
       - name: Commit & push if changed
+        id: commit
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add ill-webp
           if git diff --cached --quiet; then
             echo "没有变化，跳过提交"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             COUNT=$(git diff --cached --name-only | wc -l)
             git commit -m "chore: 更新 WebP 曲绘素材（${COUNT} 个文件）"
             git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
+
+      # 整包zips：让客户端「一次下载」替代 656 次逐文件请求（国内走加速源约 2MB/s）
+      - name: Publish asset packs (release)
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          zip -q -r ill512.zip ill-webp/ill512
+          zip -q -r ill2048.zip ill-webp/ill2048
+          ls -la ill512.zip ill2048.zip
+          gh release view assets >/dev/null 2>&1 || gh release create assets             --title "曲绘整包（自动更新）"             --notes "由 GitHub Actions 自动生成并更新：ill512.zip（卡片+背景）、ill2048.zip（详情页）。供 PhiTools 客户端一键下载全部曲绘。"
+          gh release upload assets ill512.zip ill2048.zip --clobber

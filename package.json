@@ -1,0 +1,15 @@
+{
+  "name": "phitools-assets",
+  "private": true,
+  "version": "1.0.0",
+  "description": "PhiTools 曲绘素材仓库：自动把上游原图转成 WebP（ill512 / ill2048）",
+  "type": "module",
+  "scripts": {
+    "update": "node scripts/update-webp.mjs",
+    "update:force": "node scripts/update-webp.mjs --force",
+    "update:test": "node scripts/update-webp.mjs --limit 3"
+  },
+  "dependencies": {
+    "sharp": "^0.33.0"
+  }
+}
